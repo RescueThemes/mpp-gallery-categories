@@ -41,14 +41,12 @@ class MPP_Gallery_Categories_Helper {
 
 		return self::$instance;
 	}
-
-
+	
 	/**
 	 * setup the requirements
 	 */
 	public function setup() {
-		// load plugin files
-		add_action( 'mpp_loaded', array( $this, 'load' ), 1 );
+
 		// register custom taxonomy for mediapress gallery
 		add_action( 'mpp_setup', array( $this, 'register_gallery_taxonomy' ), 99 );
 		//add interface to assign gallery to any category
@@ -62,13 +60,9 @@ class MPP_Gallery_Categories_Helper {
 		// ajax action to filter gallery
 		add_action( 'wp_ajax_mpp_filter', array( $this, 'load_filter_list' ), 5 );
 		add_action( 'wp_ajax_nopriv_mpp_filter', array( $this, 'load_filter_list' ), 5 );
-	}
 
-	/**
-	 * loading plugins files
-	 */
-	public function load() {
-		require_once $this->path . 'mpp-media-categories.php';
+		add_action( 'mpp_media_added', array( $this, 'save_media_categories' ), 5, 2 );
+		add_action( 'mpp_gallery_updated', array( $this, 'update_media_categories' ), 10 );
 	}
 
 	/**
@@ -295,6 +289,36 @@ class MPP_Gallery_Categories_Helper {
 		mpp_get_template( 'gallery/loop-gallery.php' );
 
 		exit( 0 );
+	}
+
+	public function save_media_categories( $media_id, $gallery_id ) {
+
+		$terms = wp_get_post_terms( $gallery_id, $this->get_taxonomy_name() );
+		$terms = wp_list_pluck( $terms, 'term_id' );
+
+		wp_set_object_terms( $media_id, $terms, $this->get_taxonomy_name(), false );
+	}
+
+	public function update_media_categories( $gallery_id ) {
+
+		if ( ! $gallery_id ) {
+			return;
+		}
+
+		$attachment_ids = get_children( array( 'post_parent' => $gallery_id, 'post_type' => 'attachment' ) );
+		$media_ids      = wp_list_pluck( $attachment_ids, 'ID' );
+
+		if ( ! $media_ids ) {
+			return;
+		}
+
+		$taxonomy_name = $this->get_taxonomy_name();
+		$terms         = wp_get_post_terms( $gallery_id, $taxonomy_name );
+		$terms         = wp_list_pluck( $terms, 'term_id' );
+
+		foreach ( $media_ids as $media_id ) {
+			wp_set_object_terms( $media_id, $terms, $taxonomy_name, false );
+		}
 	}
 
 }
