@@ -3,7 +3,7 @@
 /**
  * Plugin Name: MediaPress Gallery Categories
  * Plugin URI: http://buddydev.com
- * Description: This plugin create a custom taxonomy for MediaPress
+ * Description: This plugin create a custom taxonomy for MediaPress and allow users to filter gallery based on category on gallery directory.
  * Version: 1.0.0
  * Author: BuddyDev Team
  * Author URI: https://buddydev.com
@@ -18,21 +18,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Class MPP_Gallery_Categories_Helper
+ */
 class MPP_Gallery_Categories_Helper {
 
 	/**
-	 * @var null
+     * Class instance
+     *
+	 * @var MPP_Gallery_Categories_Helper
 	 */
 	private static $instance = null;
 
 	/**
-	 * MPP_Gallery_Categories_Helper constructor.
+	 * The constructor.
 	 */
 	private function __construct() {
-
 		$this->setup();
 	}
 
+	/**
+     * Class instance
+     *
+	 * @return MPP_Gallery_Categories_Helper
+	 */
 	public static function get_instance() {
 
 		if ( is_null( self::$instance ) ) {
@@ -71,14 +80,14 @@ class MPP_Gallery_Categories_Helper {
 	public function register_gallery_taxonomy() {
 
 		$labels = array(
-			'name'              => _x( 'Gallery Categories', 'taxonomy general name', 'mpp-gallery-categories' ),
-			'singular_name'     => _x( 'Gallery Category', 'taxonomy singular name', 'mpp-gallery-categories' ),
-			'search_items'      => __( 'Search Gallery Category', 'mpp-gallery-categories' ),
-			'all_items'         => __( 'All Gallery Category', 'mpp-gallery-categories' ),
-			'edit_item'         => __( 'Edit Gallery Category', 'mpp-gallery-categories' ),
-			'update_item'       => __( 'Update Gallery Category', 'mpp-gallery-categories' ),
-			'add_new_item'      => __( 'Add New Gallery Category', 'mpp-gallery-categories' ),
-			'new_item_name'     => __( 'New Gallery Category Name', 'mpp-gallery-categories' ),
+			'name'          => _x( 'Gallery Categories', 'taxonomy general name', 'mpp-gallery-categories' ),
+			'singular_name' => _x( 'Gallery Category', 'taxonomy singular name', 'mpp-gallery-categories' ),
+			'search_items'  => __( 'Search Gallery Category', 'mpp-gallery-categories' ),
+			'all_items'     => __( 'All Gallery Category', 'mpp-gallery-categories' ),
+			'edit_item'     => __( 'Edit Gallery Category', 'mpp-gallery-categories' ),
+			'update_item'   => __( 'Update Gallery Category', 'mpp-gallery-categories' ),
+			'add_new_item'  => __( 'Add New Gallery Category', 'mpp-gallery-categories' ),
+			'new_item_name' => __( 'New Gallery Category Name', 'mpp-gallery-categories' ),
 		);
 
 		$args = array(
@@ -86,7 +95,6 @@ class MPP_Gallery_Categories_Helper {
 			'labels'            => $labels,
 			'public'            => true,
 			'show_ui'           => true,
-			//'show_in_menu'      => 'edit.php?post_type='.mpp_get_gallery_post_type(),
 			'show_admin_column' => true,
 			'query_var'         => true,
 			'rewrite'           => array( 'slug' => $this->get_taxonomy_slug() ),
@@ -97,14 +105,27 @@ class MPP_Gallery_Categories_Helper {
 		//register_taxonomy_for_object_type( $this->get_taxonomy_name(), mpp_get_gallery_post_type() );
 	}
 
+	/**
+     * Get gallery slug
+     *
+	 * @return string
+	 */
 	public function get_taxonomy_slug() {
 		return apply_filters( 'mpp_gallery_category_slug', 'mpp-gallery-category' );
 	}
 
+	/**
+     * Get custom taxonomy name
+     *
+	 * @return string
+	 */
 	public function get_taxonomy_name() {
 		return 'mpp_gallery_category';
 	}
 
+	/**
+	 * Add interface to apply category to the gallery
+	 */
 	public function add_interface() {
 
 		$gallery_id = mpp_get_current_gallery_id();
@@ -120,51 +141,60 @@ class MPP_Gallery_Categories_Helper {
 		echo '</div>';
 	}
 
+	/**
+     * Get gallery categories
+     *
+	 * @param int $gallery_id Gallery id.
+	 *
+	 * @return array
+	 */
 	public function get_gallery_categories( $gallery_id ) {
-
-		$terms      = wp_get_post_terms( $gallery_id, $this->get_taxonomy_name() );
-		$term_ids   = wp_list_pluck( $terms, 'term_id' );
+		$terms    = wp_get_post_terms( $gallery_id, $this->get_taxonomy_name() );
+		$term_ids = wp_list_pluck( $terms, 'term_id' );
 
 		return $term_ids;
 	}
 
+	/**
+     * Print checkbox style categories to select for the gallery
+     *
+	 * @param array $params Array of parameters.
+	 *
+	 * @return string
+	 */
 	public function category_terms_checklist( $params = array() ) {
-
 		$defaults = array(
-			'descendants_and_self'  => 0,
-			'selected_cats'         => false,
-			'walker'                => null,
-			'taxonomy'              => 'mpp_gallery_category',
-			'checked_ontop'         => true,
-			'echo'                  => true,
+			'descendants_and_self' => 0,
+			'selected_cats'        => false,
+			'walker'               => null,
+			'taxonomy'             => 'mpp_gallery_category',
+			'checked_ontop'        => true,
+			'echo'                 => true,
 		);
 
 		$r = wp_parse_args( $params, $defaults );
 
 		if ( empty( $r['walker'] ) || ! ( $r['walker'] instanceof Walker ) ) {
-
 			require_once ABSPATH . '/wp-admin/includes/class-walker-category-checklist.php';
 
 			$walker = new Walker_Category_Checklist;
-
 		} else {
 			$walker = $r['walker'];
 		}
 
-		$taxonomy               = $r['taxonomy'];
-		$descendants_and_self   = (int) $r['descendants_and_self'];
-		$post_id                = $r['post_id'];
+		$taxonomy             = $r['taxonomy'];
+		$descendants_and_self = (int) $r['descendants_and_self'];
+		$post_id              = $r['post_id'];
 
 		$args = array( 'taxonomy' => $taxonomy );
 
 		$tax              = get_taxonomy( $taxonomy );
-		$args['disabled'] = 0;//! current_user_can( $tax->cap->assign_terms );
+		$args['disabled'] = 0; // !current_user_can( $tax->cap->assign_terms );.
 
 		$args['list_only'] = ! empty( $r['list_only'] );
 
 		if ( is_array( $r['selected_cats'] ) ) {
 			$args['selected_cats'] = $r['selected_cats'];
-
 		} elseif ( $post_id ) {
 			$args['selected_cats'] = wp_get_object_terms( $post_id, $taxonomy, array_merge( $args, array( 'fields' => 'ids' ) ) );
 		} else {
@@ -214,8 +244,12 @@ class MPP_Gallery_Categories_Helper {
 		return $output;
 	}
 
+	/**
+     * Save gallery category
+     *
+	 * @param int $gallery_id Gallery id.
+	 */
 	public function save_gallery_category( $gallery_id ) {
-
 		$terms    = $_POST['tax_input'];
 		$taxonomy = $this->get_taxonomy_name();
 
@@ -229,12 +263,14 @@ class MPP_Gallery_Categories_Helper {
 		wp_set_object_terms( $gallery_id, $terms, $taxonomy, false );
 	}
 
+	/**
+	 * Add category filter to gallery listing directory.
+	 */
 	public function add_category_filter(){
-
-		$args   = array(
-			'hide_empty'    => 0,
-			'fields'        => 'id=>name',
-			'taxonomy'      => $this->get_taxonomy_name()
+		$args = array(
+			'hide_empty' => 0,
+			'fields'     => 'id=>name',
+			'taxonomy'   => $this->get_taxonomy_name()
 		);
 
 		$terms = get_terms( $args );
@@ -250,10 +286,12 @@ class MPP_Gallery_Categories_Helper {
 			</optgroup>
 		<?php endif; ?>
 		<?php
-
 	}
-	public function load_filter_list () {
 
+	/**
+	 * Load filter list
+	 */
+	public function load_filter_list () {
 		$type = isset( $_POST['filter'] ) ? $_POST['filter'] : '';
 
 		if ( strpos( $type, 'mpp-gallery-category-' ) === false ) {
@@ -262,10 +300,8 @@ class MPP_Gallery_Categories_Helper {
 
 		$cat_id = absint( str_replace( 'mpp-gallery-category-', '', $type  ) );
 
- 		$page = absint( $_POST['page'] );
-
-		$scope = $_POST['scope'];
-
+		$page         = absint( $_POST['page'] );
+		$scope        = $_POST['scope'];
 		$search_terms = $_POST['search_terms'];
 
 		//make the query and setup
@@ -273,11 +309,11 @@ class MPP_Gallery_Categories_Helper {
 
 		//get all public galleries, should we do type filtering
 		mediapress()->the_gallery_query = new MPP_Gallery_Query( array(
-			'status'		=> 'public',
-			'type'			=> $type,
-			'page'			=> $page,
-			'search_terms'	=> $search_terms,
-			'tax_query' => array(
+			'status'       => 'public',
+			'type'         => $type,
+			'page'         => $page,
+			'search_terms' => $search_terms,
+			'tax_query'    => array(
 				array(
 					'taxonomy' => $this->get_taxonomy_name(),
 					'field'    => 'term_id',
@@ -291,14 +327,24 @@ class MPP_Gallery_Categories_Helper {
 		exit( 0 );
 	}
 
+	/**
+     * Save media categories
+     *
+	 * @param int $media_id Media id.
+	 * @param int $gallery_id Gallery id.
+	 */
 	public function save_media_categories( $media_id, $gallery_id ) {
-
 		$terms = wp_get_post_terms( $gallery_id, $this->get_taxonomy_name() );
 		$terms = wp_list_pluck( $terms, 'term_id' );
 
 		wp_set_object_terms( $media_id, $terms, $this->get_taxonomy_name(), false );
 	}
 
+	/**
+     * Update media categories
+     *
+	 * @param int $gallery_id Gallery id.
+	 */
 	public function update_media_categories( $gallery_id ) {
 
 		if ( ! $gallery_id ) {
